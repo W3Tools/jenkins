@@ -1,0 +1,53 @@
+version: "2"
+services:
+  dind:
+    image: docker:dind
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+      - jenkins-cert:/certs/client
+      - ./data:/var/jenkins_home
+    ports:
+      - "2376:2376"
+    networks:
+      jenkins:
+        aliases:
+          - docker
+    command: --storage-driver=overlay2
+
+  jenkins:
+    build: ./image
+    image: w3tools-jenkins
+    restart: on-failure
+    environment:
+      - DOCKER_HOST=tcp://docker:2376
+      - DOCKER_CERT_PATH=/certs/client
+      - DOCKER_TLS_VERIFY=1
+    ports:
+      - "18080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-cert:/certs/client:ro
+      - ./data:/var/jenkins_home
+      - ./backup:/data/JenkinsBackup
+    deploy:
+      resources:
+        # 最大可使用资源
+        limits:
+          cpus: '2'
+          memory: 8G
+        # 至少可以分配的资源
+        reservations:
+          memory: 1G
+    networks:
+      jenkins:
+        aliases:
+          - jenkins
+
+networks:
+  jenkins:
+    driver: bridge
+
+volumes:
+  jenkins-cert:
