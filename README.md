@@ -1,25 +1,30 @@
-# W3Tools jenkins
+# W3Tools jenkins(容器的权限问题, 最好不要以root身份运行)
+
+## 0.修改权限(将jenkins文件夹目录设置为1000)
+```
+cd .. && chown -R 1000:1000 jenkins 
+```
 
 ## 1. 构建镜像
 ```
-docker-compose build
+docker compose build
 ```
 
 ## 2. 启动镜像
 ```
-docker-compose up -d 
+docker compose up -d 
 ```
 
 ## 3. 查看jenkins初始密码(过滤出来的日志, 密码在匹配行的上两行)
 ```
-docker-compose logs -f | grep -3a "initialAdminPassword"
+docker compose logs -f | grep -3a "initialAdminPassword"
 ```
 
 ## 4. 开始使用页面....
 
 ## 5. 手动构建pipeline使用的镜像(可选)
 ```
-docker-compose exec jenkins bash # 进入jenkins容器
+docker compose exec jenkins bash # 进入jenkins容器
 cd dockerfile # 切换到容器里存放dockerfile的目录
 docker build . -f w3tools-awscli -t w3tools-awscli:latest  # 在容器里构建awscli镜像
 docker build . -f w3tools-node -t w3tools-node:latest  # 在容器里构建node环境镜像
