@@ -31,6 +31,7 @@ services:
       - jenkins-cert:/certs/client:ro
       - ./data:/var/jenkins_home
       - ./backup:/data/Archive
+      - ./scripts:/var/jenkins_home/scripts
     deploy:
       resources:
         # 最大可使用资源
