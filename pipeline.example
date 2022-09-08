@@ -1,0 +1,97 @@
+pipeline {
+    environment {
+        GitCredentialsId = ""
+        AwsCredentialsId = ""
+        BuildOutDir = "dist"
+
+        NodeImage = "w3tools/w3tools-node18:latest"
+        AwsCliImage = "w3tools/w3tools-awscli:latest"
+        ArchiveHome = "/data/Archive"
+    }
+    parameters {
+        string(name: 'Branch', defaultValue: 'release', description: '请输入将要构建的代码分支')
+        choice(name: 'Status', choices: ['deploy','rollback'], description: '请选择发布或者回滚?')
+        string(name: 'version_id', defaultValue: '0', description: '回滚时用, 默认回滚到上一次构建, 如需要回滚到更早构建, 请输入对应构建ID, 只支持最近五次构建的回滚,部署请忽略此参数')
+    }
+    agent none
+    stages {
+        stage("Checkout") {
+            // 代码检出
+            agent any
+            steps {
+                git (
+                    branch: "${Branch}",
+                    credentialsId: "${GitCredentialsId}",
+                    url: "${GIT_URL}",
+                    changelog: true
+                )
+            }
+        }
+        stage("Build") {
+            // 构建代码
+            agent {
+                docker {
+                    image "${NodeImage}"
+                }
+            }
+            steps {
+                sh "node --version && yarn --version"
+                sh "yarn"
+                sh '''
+                    if [[ "$ENVIRONMENT" == "stage" ]]; then
+                        yarn build-stage
+                    else
+                        yarn build
+                    fi
+                '''
+            }
+        }
+        stage("Deploy") {
+            // 只升级部署
+            when {
+                environment name: 'Status', value: 'deploy'
+            }
+            agent {
+                docker {
+                    image "${AwsCliImage}"
+                }
+            }
+            steps {
+                sh "aws --version"
+                script {
+                    withCredentials([usernamePassword(credentialsId: env.AwsCredentialsId, passwordVariable: 'AwsSecretAccessKey', usernameVariable: 'AwsaccessKeyId')]) {
+                        sh("AWS_ACCESS_KEY_ID=$AwsaccessKeyId AWS_SECRET_ACCESS_KEY=$AwsSecretAccessKey aws s3 cp ./${BuildOutDir}/ s3://${BucketName}/ --acl bucket-owner-full-control --recursive --cache-control 'public,max-age=600,s-maxage=3600' --exclude '.git/*'")
+                        sh('AWS_ACCESS_KEY_ID=$AwsaccessKeyId AWS_SECRET_ACCESS_KEY=$AwsSecretAccessKey aws cloudfront create-invalidation --distribution-id ${CloudFrontID} --paths "/*"')
+                    }
+                }
+                sh "env"
+            }
+        }
+        stage("归档") {
+            when {
+                environment name: 'Status', value: 'deploy'
+            }
+            agent any
+            steps {
+                script {
+                    if(!fileExists("${ArchiveHome}/${JOB_NAME}")) {
+                        sh("mkdir ${ArchiveHome}/${JOB_NAME}")
+                    }
+                    sh "echo $ArchiveHome"
+                }
+            }
+        }
+        stage("Rollback") {
+            // 回滚
+            when {
+                environment name: 'Status', value: "rollback"
+            }
+            agent any
+            steps {
+                script {
+                    sh('echo $project_dir')
+                }
+            }
+        }
+    }
+}
