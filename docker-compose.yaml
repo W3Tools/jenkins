@@ -30,7 +30,7 @@ services:
     volumes:
       - jenkins-cert:/certs/client:ro
       - ./data:/var/jenkins_home
-      - ./backup:/data/JenkinsBackup
+      - ./backup:/data/Archive
     deploy:
       resources:
         # 最大可使用资源
