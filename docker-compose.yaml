@@ -8,8 +8,9 @@ services:
     volumes:
       - jenkins-cert:/certs/client
       - ./data:/var/jenkins_home
+      - ./docker/lib:/var/lib/docker/
     ports:
-      - "2376:2376"
+      - "127.0.0.1:2376:2376"
     networks:
       jenkins:
         aliases:
@@ -32,6 +33,7 @@ services:
       - ./data:/var/jenkins_home
       - ./backup:/data/Archive
       - ./scripts:/var/jenkins_home/scripts
+      - ./docker/config:/var/jenkins_home/.docker
     deploy:
       resources:
         # 最大可使用资源

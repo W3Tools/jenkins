@@ -1,0 +1,4 @@
+data/
+docker/lib
+docker/config
+!/**/.gitkeep
